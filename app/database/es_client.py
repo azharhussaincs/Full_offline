@@ -92,9 +92,14 @@ class ESClient:
     def ping(self) -> bool:
         """Return ``True`` if the cluster responds to a ping, ``False`` otherwise."""
         try:
-            return bool(self.client.ping())
+            ok = bool(self.client.ping())
+            if ok:
+                logger.info("Elasticsearch ping OK (host=%s)", settings.es_host)
+            else:
+                logger.warning("Elasticsearch ping returned False (host=%s)", settings.es_host)
+            return ok
         except Exception as exc:  # noqa: BLE001 - any failure means "not reachable"
-            logger.warning("Elasticsearch ping failed: %s", exc)
+            logger.warning("Elasticsearch ping failed (host=%s): %s", settings.es_host, exc)
             return False
 
     def cluster_info(self) -> dict[str, Any]:
@@ -104,11 +109,31 @@ class ESClient:
         except Exception as exc:  # noqa: BLE001
             logger.error("Unable to fetch cluster info: %s", exc)
             raise ElasticsearchConnectionError(str(exc)) from exc
-        return {
+        result = {
             "name": info.get("name"),
             "cluster_name": info.get("cluster_name"),
             "version": (info.get("version") or {}).get("number"),
         }
+        logger.info("Connected to Elasticsearch: node=%s cluster=%s version=%s",
+                    result["name"], result["cluster_name"], result["version"])
+        return result
+
+    def cluster_health(self) -> dict[str, Any]:
+        """Return ``GET /_cluster/health`` (and log the status / node count).
+
+        Raises:
+            ElasticsearchConnectionError: if the call fails.
+        """
+        try:
+            health = dict(self.client.cluster.health())
+        except Exception as exc:  # noqa: BLE001
+            logger.error("GET /_cluster/health failed: %s", exc)
+            raise ElasticsearchConnectionError(str(exc)) from exc
+        logger.info(
+            "GET /_cluster/health -> status=%s nodes=%s active_shards=%s",
+            health.get("status"), health.get("number_of_nodes"), health.get("active_shards"),
+        )
+        return health
 
     def close(self) -> None:
         """Close the underlying transport.  Safe to call multiple times."""

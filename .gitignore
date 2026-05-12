@@ -9,11 +9,21 @@ dist/
 # --- Virtual environments -------------------------------------------------
 venv/
 .venv/
+.build-venv/
 env/
 ENV/
 
 # --- Environment & secrets ------------------------------------------------
 .env
+
+# --- Windows packaging: large build inputs & outputs (built locally) -------
+/runtime/*
+!/runtime/README.md
+packaging/build/
+packaging/dist/
+packaging/Output/
+packaging/app.ico
+packaging/app.png
 
 # --- Application runtime artefacts ----------------------------------------
 logs/

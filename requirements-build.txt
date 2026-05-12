@@ -1,0 +1,24 @@
+# ---------------------------------------------------------------------------
+# PeopleFinder — build / packaging dependencies (build machine only).
+#   pip install -r requirements-build.txt
+#
+# These are needed only to PRODUCE the Windows installer.  End users need none
+# of it (the installer bundles a private Python + PySide6 + Elasticsearch).
+#
+# Separately install (not via pip):
+#   * Inno Setup 6.3+   — https://jrsoftware.org/isdl.php   (provides ISCC.exe)
+# And place beforehand:
+#   * runtime/elasticsearch/   — an extracted Elasticsearch distribution that
+#                                matches your source cluster's version
+#   * runtime/es-data/         — the tc_index data directory (see tools/prepare_es_payload.py)
+# ---------------------------------------------------------------------------
+
+# Everything the app needs at runtime…
+-r requirements.txt
+
+# …plus the freezer that turns it into a standalone Windows executable.
+pyinstaller>=6.3
+
+# NOTE: tools/prepare_es_payload.py and packaging/configure_bundled_es.py use
+# only the Python standard library — no `elasticsearch` client package required
+# for them (the running app does use `elasticsearch`, which is in requirements.txt).

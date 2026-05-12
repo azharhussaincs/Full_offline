@@ -50,14 +50,58 @@ class AppController:
     # Connection
     # ------------------------------------------------------------------ #
     def connection_status(self) -> tuple[bool, str]:
-        """Return ``(is_connected, human_message)`` describing the cluster state."""
+        """Verify the Elasticsearch backend and return ``(is_connected, human_message)``.
+
+        Performs (and logs) a full start-up check against the **real**
+        Elasticsearch cluster:
+
+        * ``ping`` / ``GET /``                — reachable?  which version?
+        * ``GET /_cluster/health``            — cluster status (yellow/green ok)
+        * ``HEAD /tc_index``                  — does the index exist?
+        * ``GET /tc_index/_count``            — how many real documents?
+
+        No SQLite / demo data is involved anywhere — all searches go to ES.
+
+        On the packaged Windows build this also makes sure the *embedded*
+        Elasticsearch (bundled next to the .exe, with the ``tc_index`` data) is
+        running before the check — a no-op when running from source.
+        """
+        # Deploy-layer hook: start the bundled Elasticsearch if there is one.
+        try:
+            from app.services import embedded_es
+
+            embedded_es.ensure_started()
+        except Exception:  # noqa: BLE001 - never let the launcher break the check
+            logger.warning("Embedded Elasticsearch start-up hook failed", exc_info=True)
+
+        logger.info("Verifying Elasticsearch backend: host=%s index=%s user=%s",
+                    settings.es_host, settings.es_index, settings.es_username)
         if not self.es.ping():
+            logger.error("Elasticsearch is NOT reachable at %s — is the cluster running?", settings.es_host)
             return False, "disconnected — is Elasticsearch running on this host?"
+
+        # Connected — gather and log the details.
         try:
             info = self.es.cluster_info()
-            return True, f"connected to '{info.get('cluster_name')}' (v{info.get('version')})"
         except ElasticsearchConnectionError:
-            return True, "connected"
+            info = {}
+        try:
+            health = self.es.cluster_health()
+            status = str(health.get("status") or "unknown")
+        except ElasticsearchConnectionError:
+            status = "unknown"
+
+        index = settings.es_index
+        exists = self.index_service.index_exists(index)
+        count = self.document_count(index) if exists else 0
+        if not exists:
+            logger.error("Connected to Elasticsearch but index %r does NOT exist.", index)
+            return True, f"connected to '{info.get('cluster_name')}' but index '{index}' is missing"
+
+        logger.info("Elasticsearch backend OK: cluster=%s version=%s health=%s index=%s docs=%d",
+                    info.get("cluster_name"), info.get("version"), status, index, count)
+        return True, (f"connected to '{info.get('cluster_name')}' (v{info.get('version')}, {status}); "
+                      f"index '{index}': {count:,} docs")
 
     # ------------------------------------------------------------------ #
     # Mapping / fields
@@ -207,7 +251,16 @@ class AppController:
         try:
             self.history.save()
         finally:
-            self.es.close()
+            try:
+                self.es.close()
+            finally:
+                # Deploy-layer hook: stop the embedded Elasticsearch if we started it.
+                try:
+                    from app.services import embedded_es
+
+                    embedded_es.stop()
+                except Exception:  # noqa: BLE001
+                    logger.warning("Embedded Elasticsearch shutdown hook failed", exc_info=True)
 
 
 __all__ = ["AppController", "SearchError", "ValidationError"]

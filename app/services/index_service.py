@@ -40,7 +40,9 @@ class IndexService:
         """Return ``True`` if *index* (default: the configured index) exists."""
         index = index or settings.es_index
         try:
-            return bool(self._es.client.indices.exists(index=index))
+            exists = bool(self._es.client.indices.exists(index=index))
+            logger.info("Index %r exists: %s", index, exists)
+            return exists
         except Exception as exc:  # noqa: BLE001
             logger.warning("indices.exists check failed for %r: %s", index, exc)
             return False
@@ -50,8 +52,11 @@ class IndexService:
         index = index or settings.es_index
         try:
             resp = dict(self._es.client.count(index=index))
-            return int(resp.get("count", 0))
+            n = int(resp.get("count", 0))
+            logger.info("GET /%s/_count -> %d document(s)", index, n)
+            return n
         except NotFoundError:
+            logger.warning("GET /%s/_count -> index not found", index)
             return 0
         except Exception as exc:  # noqa: BLE001
             logger.warning("count failed for %r: %s", index, exc)

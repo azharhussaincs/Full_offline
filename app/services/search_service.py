@@ -77,8 +77,8 @@ class SearchService:
         from_ = (page - 1) * size
 
         body = build_search_body(query, self.available_fields(index))
-        logger.debug("Searching index=%s type=%s page=%d size=%d body=%s",
-                     index, query.search_type, page, size, body)
+        logger.info("ES SEARCH -> index=%s type=%s page=%d size=%d", index, query.search_type, page, size)
+        logger.info("ES SEARCH query body: %s", body)
         try:
             resp = self._es.client.search(
                 index=index, query=body, from_=from_, size=size, track_total_hits=True,
@@ -99,7 +99,10 @@ class SearchService:
                 logger.exception("Search failed for index %r", index)
                 raise SearchError(f"Search failed: {exc2}") from exc2
 
-        return self._to_result(query, dict(resp))
+        result = self._to_result(query, dict(resp))
+        logger.info("ES SEARCH <- index=%s hits_on_page=%d total_hits=%d took=%dms",
+                    index, len(result.documents), result.total, result.took_ms)
+        return result
 
     def get_all_documents(
         self, index: Optional[str] = None, page: int = 1, page_size: Optional[int] = None,
