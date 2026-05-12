@@ -310,3 +310,4 @@ python main.py
 | A search seems slow | Single-term name searches are instant; an exact phone lookup scans more fields and can take a second or two on a very large index — this is expected and the UI stays responsive. |
 # Full_offline
 # Full_offline
+# Full_offline

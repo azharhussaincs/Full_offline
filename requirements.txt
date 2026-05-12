@@ -1,0 +1,14 @@
+# ---------------------------------------------------------------------------
+# Offline Elasticsearch Explorer — Python dependencies
+# Install with:  pip install -r requirements.txt
+# Tested with Python 3.10 – 3.12 on Linux.
+# ---------------------------------------------------------------------------
+
+# Official Elasticsearch client (8.x line — matches the "basic_auth=" API).
+elasticsearch>=8.13,<9
+
+# Modern Qt 6 bindings used for the desktop GUI.
+PySide6>=6.6,<7
+
+# Loads configuration / secrets from a local .env file.
+python-dotenv>=1.0
