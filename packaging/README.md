@@ -138,16 +138,32 @@ Then run the `configure_bundled_es.py --set-password …` command from Step 1.
 After this, `runtime\es-data\` is the payload (≈ your `tc_index` size) and
 `runtime\elasticsearch\` is the configured distribution.
 
+> **Shortcut:** instead of running `prepare_es_payload.py` here and then
+> `build_windows.bat` in Step 3, you can let the build script do Step 2 for you
+> with `--prepare-data` (see Step 3) — everything after that flag is forwarded to
+> `prepare_es_payload.py` (with `--out runtime\es-data` and
+> `--es-home runtime\elasticsearch` added automatically). You still need
+> `runtime\elasticsearch\` in place first, and a snapshot payload still needs the
+> `configure_bundled_es.py --set-password …` step afterwards.
+
 ---
 
 ## Step 3 — build the installer
 
 ```bat
+:: runtime\es-data\ already prepared (Step 2):
 packaging\build_windows.bat
+
+:: …or build runtime\es-data\ as part of the run (skips Step 2):
+packaging\build_windows.bat --prepare-data --mode cold-copy ^
+    --source-data  "C:\path\to\elasticsearch\data" ^
+    --source-config "C:\path\to\elasticsearch\config" --verify
+:: (run  packaging\build_windows.bat --help  for the full --prepare-data usage)
 ```
 
-It runs all six steps (venv → verify `runtime\elasticsearch` → verify
-`runtime\es-data` → icon → PyInstaller → Inno Setup) and, on success, prints:
+It runs all six steps (venv → verify `runtime\elasticsearch` → [`--prepare-data`:
+build `runtime\es-data`] → verify `runtime\es-data` → icon → PyInstaller → Inno
+Setup) and, on success, prints:
 
 ```
 packaging\Output\PeopleFinder-Setup.exe
